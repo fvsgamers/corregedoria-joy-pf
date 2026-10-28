@@ -1,12 +1,10 @@
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const config = require('./config.json');
 
+// Inicializa o cliente sem Intents Privilegiadas (Não precisa ativar MessageContent no Portal)
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds // Mantém apenas a permissão essencial de servidores
-    ]
+    intents: [GatewayIntentBits.Guilds]
 });
 
 client.commands = new Collection();
@@ -35,16 +33,12 @@ for (const file of eventFiles) {
     }
 }
 
-const tokenFinal = process.env.DISCORD_TOKEN;
+// Tratamento e Injeção do Token da Discloud
+const tokenSeguro = process.env.DISCORD_TOKEN;
 
-if (!tokenFinal || tokenFinal.trim() === "" || tokenFinal.includes("SEU_TOKEN_AQUI")) {
-    console.error("\n========================================================");
-    console.error("❌ ERRO DE CONFIGURAÇÃO DE SEGURANÇA DETECTADO");
-    console.error("👉 A variável 'DISCORD_TOKEN' está vazia ou inacessível.");
-    console.error("👉 Certifique-se de configurar a ENV no painel da Discloud.");
-    console.error("========================================================\n");
-    process.exit(1); 
+if (!tokenSeguro) {
+    console.error("❌ ERRO: A variável DISCORD_TOKEN não foi definida no painel da Discloud.");
+    process.exit(1);
 } else {
-    // Remove possíveis quebras de linha acidentais introduzidas no painel
-    client.login(tokenFinal.trim());
+    client.login(tokenSeguro.trim());
 }
