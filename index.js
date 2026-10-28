@@ -33,4 +33,16 @@ for (const file of eventFiles) {
     }
 }
 
-client.login(process.env.DISCORD_TOKEN);
+const tokenFinal = process.env.DISCORD_TOKEN;
+
+if (!tokenFinal || tokenFinal.trim() === "" || tokenFinal.includes("SEU_TOKEN_AQUI")) {
+    console.error("\n========================================================");
+    console.error("❌ ERRO DE CONFIGURAÇÃO DE SEGURANÇA DETECTADO");
+    console.error("👉 A variável 'DISCORD_TOKEN' está vazia ou inacessível.");
+    console.error("👉 Certifique-se de configurar a ENV no painel da Discloud.");
+    console.error("========================================================\n");
+    process.exit(1); 
+} else {
+    // Remove possíveis quebras de linha acidentais introduzidas no painel
+    client.login(tokenFinal.trim());
+}
