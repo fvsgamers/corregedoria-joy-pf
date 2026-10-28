@@ -66,6 +66,17 @@ Antes de ligar o bot pela primeira vez, sincronize o comando `/setup` com o Disc
 ```bash
 npm run deploy
 ```
+## 🔒 Segurança e Variáveis de Ambiente
+
+Para evitar o vazamento de credenciais e seguir as boas práticas de segurança, o **Token do Bot não é inserido em arquivos de texto**. O projeto utiliza `process.env.DISCORD_TOKEN`.
+
+### Como configurar a chave:
+1. **Na Discloud:** Acesse o painel da sua aplicação, vá até a área de **Variáveis de Ambiente**, adicione a chave `DISCORD_TOKEN` e insira o token gerado pelo Discord Developer Portal no valor.
+2. **Em ambiente Local (.env):** Se for testar no seu computador pessoal, você pode instalar a biblioteca `dotenv` (`npm install dotenv`), criar um arquivo chamado `.env` na raiz e adicionar:
+   ```env
+   DISCORD_TOKEN=seu_token_aqui
+   ```
+   *(Lembre-se de adicionar o arquivo `.env` no seu `.gitignore` para nunca enviá-lo ao GitHub!)*
 
 ---
 
