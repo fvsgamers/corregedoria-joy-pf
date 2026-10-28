@@ -1,0 +1,7 @@
+{
+  "token": "SEU_TOKEN_AQUI",
+  "clientId": "ID_DO_BOT_AQUI",
+  "guildId": "ID_DO_SEU_SERVIDOR_AQUI",
+  "idCargoCorregedor": "ID_DO_CARGO_CORREGEDOR",
+  "idCargoStaff": "ID_DO_CARGO_STAFF"
+}
