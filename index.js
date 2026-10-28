@@ -4,7 +4,9 @@ const path = require('path');
 const config = require('./config.json');
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [
+        GatewayIntentBits.Guilds // Mantém apenas a permissão essencial de servidores
+    ]
 });
 
 client.commands = new Collection();
