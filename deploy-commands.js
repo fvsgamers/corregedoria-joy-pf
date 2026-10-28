@@ -1,5 +1,5 @@
 const { REST, Routes } = require('discord.js');
-const { token, clientId, guildId } = require('./config.json');
+const { clientId, guildId } = require('./config.json'); // Sem puxar o token daqui
 const fs = require('fs');
 const path = require('path');
 
@@ -12,7 +12,8 @@ for (const file of commandFiles) {
     commands.push(command.data.toJSON());
 }
 
-const rest = new REST({ version: '10' }).setToken(token);
+// Puxa o Token de forma protegida
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
     try {
