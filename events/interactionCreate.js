@@ -114,7 +114,7 @@ module.exports = {
                 return interaction.showModal(modal);
             }
 
-            // --- CRIAÇÃO DOS CANAIS PRIVADOS ---
+            // --- BLOCO CORRIGIDO DE DEFINIÇÃO DA CORREGEDORIA E REVOGAÇÃO ---
             let nomeCanal = "";
             let cargoAcessoId = "";
             let embedTicket = new EmbedBuilder();
@@ -122,8 +122,9 @@ module.exports = {
 
             if (customId === 'btn_corregedoria') {
                 nomeCanal = `⚖️-corregedoria-${user.username}`;
-                cargoAcessoId = config.idCargoCorregedor;
-                mencaoCargo = `<@&${config.idCargoCorregedor}>`;
+                // Garante que puxa o ID do cargo do config, senão deixa em branco para não quebrar
+                cargoAcessoId = config.idCargoCorregedor || "";
+                mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Corregedoria";
 
                 embedTicket
                     .setTitle("⚖️ CORREGEDORIA GERAL DA CIDADE")
@@ -148,8 +149,8 @@ module.exports = {
 
             if (customId === 'btn_revogacao') {
                 nomeCanal = `📝-revogacao-${user.username}`;
-                cargoAcessoId = config.idCargoStaff;
-                mencaoCargo = `<@&${config.idCargoStaff}>`;
+                cargoAcessoId = config.idCargoStaff || "";
+                mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Staff";
 
                 embedTicket
                     .setTitle("📝 DEPARTAMENTO DE REVISÃO E REVOGAÇÃO")
