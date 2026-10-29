@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('../config.json');
 
 // Definição dos canais oficiais enviados por você
-const ID_CANAL_RESULTADOS = "1565178674565742832"; 
+const ID_CANAL_RESULTADOS = "1529134537018441738"; 
 const CAMINHO_CONTADOR = path.join(__dirname, '../contador.txt');
 
 // Função auxiliar segura para ler e atualizar o número do protocolo incremental
