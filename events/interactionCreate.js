@@ -80,6 +80,54 @@ module.exports = {
                 return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
             }
 
+                        // Se o veredicto for Deferido: Abre o Menu de Multipla Escolha das 4 Advertências
+            if (customId === 'btn_final_deferido') {
+                const menuAdvs = new StringSelectMenuBuilder()
+                    .setCustomId('menu_advertencias_multiplas')
+                    .setPlaceholder('Selecione uma ou mais advertências...')
+                    .setMinValues(1)
+                    .setMaxValues(4) // Permite marcar de 1 até todas as 4 listadas
+                    .addOptions([
+                        { label: 'Advertência Verbal', description: 'ID: 1511367174307188866', value: '1511367174307188866' },
+                        { label: 'Advertência Escrita Nível 1', description: 'ID: 1394767944176631969', value: '1394767944176631969' },
+                        { label: 'Advertência Geral Nível 2', description: 'ID: 1394767901218836521', value: '1394767901218836521' },
+                        { label: 'Suspensão Administrativa', description: 'ID: 1394767862174060705', value: '1394767862174060705' }
+                    ]);
+
+                const rowAdvs = new ActionRowBuilder().addComponents(menuAdvs);
+                return interaction.update({ content: '🚨 **Selecione as punições aplicáveis:**', embeds: [], components: [rowAdvs] });
+            }
+
+            // Se o veredicto for Indeferido: Fecha direto emitindo o relatório padrão
+            if (customId === 'btn_final_indeferido') {
+                const dadosCaso = memoriaFechamento.get(channelId);
+                const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
+                const numeroFinalDoCaso = obterProximoCaso();
+
+                if (dadosCaso && canalResultados) {
+                    const listaMencionados = dadosCaso.envolvidos.map(id => `<@${id}>`).join(', ');
+
+                    const embedResultado = new EmbedBuilder()
+                        .setTitle(`❌ Indeferido + #${numeroFinalDoCaso}`)
+                        .setDescription(
+                            `**Status do Veredicto:** INDEFERIDO (Recusado)\n` +
+                            `**Decisão Administrativa:** Processo arquivado.\n\n` +
+                            `👤 **Membros Citados:** ${listaMencionados}\n\n` +
+                            `⚠️ **Motivo da Recusa:** Informamos que o processo **não foi aceito por falta de provas concretas** ou porque a análise interna da Corregedoria julgou o caso como improcedente.`
+                        )
+                        .setColor(0xe74c3c)
+                        .setFooter({ text: `Encerrado por: ${interaction.user.tag}` })
+                        .setTimestamp();
+
+                    await canalResultados.send({ content: `🔔 **Notificação Formal:** ${listaMencionados}`, embeds: [embedResultado] });
+                }
+
+                await interaction.update({ content: `🔒 Caso registrado como **INDEFERIDO** (#${numeroFinalDoCaso}). Limpando sala...`, embeds: [], components: [] });
+                memoriaFechamento.delete(channelId);
+                return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
+            }
+
+
 
                         // Ação se clicar em Deferido
             if (customId === 'btn_veredicto_deferido') {
@@ -273,6 +321,72 @@ module.exports = {
             }
             // =================================================================
         }
+                // --- NOVO BLOCO: GERENCIAMENTO DE SELEÇÃO DE MENUS ---
+        if (interaction.isAnySelectMenu()) {
+            const { customId, values, channelId, guild } = interaction;
+
+            // Etapa 1: Captura os usuários e pergunta o veredicto / advertências
+            if (customId === 'selecao_membros_caso') {
+                // Guarda os IDs selecionados temporariamente na memória
+                memoriaFechamento.set(channelId, { envolvidos: values });
+
+                const embedEscolha = new EmbedBuilder()
+                    .setTitle("⚖️ ESCOLHA O VEREDICTO FINAL")
+                    .setDescription(`Membros selecionados:\n${values.map(id => `<@${id}>`).join('\n')}\n\nEscolha o desfecho deste atendimento técnico:`)
+                    .setColor(0x2f3136);
+
+                const rowEscolhas = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('btn_final_deferido').setLabel('✅ Deferido (Aplicar Punição)').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('btn_final_indeferido').setLabel('❌ Indeferido (Falta de Provas)').setStyle(ButtonStyle.Danger)
+                );
+
+                return interaction.update({ embeds: [embedEscolha], components: [rowEscolhas] });
+            }
+
+            // Etapa 2: Captura as advertências aplicadas se for Deferido
+            if (customId === 'menu_advertencias_multiplas') {
+                const dadosCaso = memoriaFechamento.get(channelId);
+                if (!dadosCaso) return interaction.reply({ content: "❌ Erro nas etapas de fechamento. Reabra o menu.", ephemeral: true });
+
+                const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
+                if (!canalResultados) return interaction.reply({ content: "❌ Canal de logs não localizado.", ephemeral: true });
+
+                const numeroFinalDoCaso = obterProximoCaso();
+                
+                // Mapeia os nomes amigáveis para as advertências com base nos IDs enviados por você
+                const dicionarioAdvs = {
+                    "1511367174307188866": "Advertência Verbal (Avisado)",
+                    "1394767944176631969": "Advertência Escrita Nível 1",
+                    "1394767901218836521": "Advertência Geral Nível 2",
+                    "1394767862174060705": "Suspensão de Atividades Administrativas"
+                };
+
+                const textoAdvsMarcadas = values.map(id => `• ${dicionarioAdvs[id] || id}`).join('\n');
+
+                // Executa a regra de negócio: Emite uma Embed separada para CADA envolvido citado
+                for (const idMembro of dadosCaso.envolvidos) {
+                    const embedIndividual = new EmbedBuilder()
+                        .setTitle(`✅ Deferido + #${numeroFinalDoCaso}`)
+                        .setDescription(
+                            `**Status do Veredicto:** DEFERIDO (Aceito)\n` +
+                            `**Decisão Administrativa:** Processo julgado procedente pela Corregedoria Geral.\n\n` +
+                            `👤 **Infrator Penalizado:** <@${idMembro}>\n\n` +
+                            `⚠️ **Punição(ões) Aplicada(s):**\n${textoAdvsMarcadas}\n\n` +
+                            `*As punições foram computadas individualmente no histórico de fichas da corporação.*`
+                        )
+                        .setColor(0x2ecc71)
+                        .setFooter({ text: `Julgado por: ${interaction.user.tag}` })
+                        .setTimestamp();
+
+                    await canalResultados.send({ content: `🔔 **Notificação de Punição:** <@${idMembro}>`, embeds: [embedIndividual] });
+                }
+
+                await interaction.update({ content: `🔒 **Sucesso!** Protocolo **#${numeroFinalDoCaso}** arquivado. Canal sendo deletado...`, embeds: [], components: [] });
+                memoriaFechamento.delete(channelId);
+                return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
+            }
+        }
+
 
                 // --- 3. RECEBIMENTO DOS MODAIS (ENVIO DOS ENCERRAMENTOS) ---
         if (interaction.isModalSubmit()) {
