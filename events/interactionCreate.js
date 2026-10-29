@@ -76,7 +76,7 @@ module.exports = {
                 return interaction.reply({ embeds: [embedVeredicto], components: [rowVeredicto] });
             }
 
-            // Ação se clicar em Deferido
+                        // Ação se clicar em Deferido
             if (customId === 'btn_veredicto_deferido') {
                 const proximoNumero = consultarCasoAtual();
                 const modal = new ModalBuilder().setCustomId('modal_deferido').setTitle('Caso Deferido');
@@ -86,7 +86,14 @@ module.exports = {
                     .setLabel('Número do Caso (Confirme o Protocolo)')
                     .setValue(`#${proximoNumero}`)
                     .setStyle(TextInputStyle.Short)
-                    .setRequired(true); // Removido o setDisabled para o Discord permitir a submissão
+                    .setRequired(true);
+
+                const envolvidosInput = new TextInputBuilder()
+                    .setCustomId('envolvidos_caso')
+                    .setLabel('Envolvidos Citados (Menção ou ID)')
+                    .setPlaceholder('@Marque o membro ou digite os Passaportes')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
 
                 const resumoInput = new TextInputBuilder()
                     .setCustomId('resumo_caso')
@@ -94,7 +101,11 @@ module.exports = {
                     .setStyle(TextInputStyle.Paragraph)
                     .setRequired(true);
 
-                modal.addComponents(new ActionRowBuilder().addComponents(numCasoInput), new ActionRowBuilder().addComponents(resumoInput));
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(numCasoInput), 
+                    new ActionRowBuilder().addComponents(envolvidosInput),
+                    new ActionRowBuilder().addComponents(resumoInput)
+                );
                 return interaction.showModal(modal);
             }
 
@@ -110,9 +121,20 @@ module.exports = {
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);
 
-                modal.addComponents(new ActionRowBuilder().addComponents(numCasoInput));
+                const envolvidosInput = new TextInputBuilder()
+                    .setCustomId('envolvidos_caso')
+                    .setLabel('Envolvidos Citados (Menção ou ID)')
+                    .setPlaceholder('@Marque o membro ou digite os Passaportes')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(numCasoInput),
+                    new ActionRowBuilder().addComponents(envolvidosInput)
+                );
                 return interaction.showModal(modal);
             }
+
 
             // --- BLOCO CORRIGIDO DE DEFINIÇÃO DA CORREGEDORIA E REVOGAÇÃO ---
             let nomeCanal = "";
@@ -247,54 +269,62 @@ module.exports = {
             // =================================================================
         }
 
-        // --- 3. RECEBIMENTO DOS MODAIS (ENVIO DOS ENERRAMENTOS) ---
+                // --- 3. RECEBIMENTO DOS MODAIS (ENVIO DOS ENCERRAMENTOS) ---
         if (interaction.isModalSubmit()) {
             const { guild, customId, fields } = interaction;
             const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
-        if (!canalResultados) {
-            return interaction.reply({ content: "❌ Erro grave: O canal de resultados oficial não foi localizado. Verifique as configurações.", ephemeral: true });
+
+            if (!canalResultados) {
+                return interaction.reply({ content: "❌ Erro grave: O canal de resultados oficial não foi localizado. Verifique as configurações.", ephemeral: true });
+            }
+
+            // Consome o número do caso de forma incremental salvando no arquivo de texto
+            const numeroFinalDoCaso = obterProximoCaso();
+            const citados = fields.getTextInputValue('envolvidos_caso');
+
+            // --- PROCESSANDO MODAL DE DEFERIMENTO ---
+            if (customId === 'modal_deferido') {
+                const resumoCaso = fields.getTextInputValue('resumo_caso');
+
+                const embedResultado = new EmbedBuilder()
+                    .setTitle(`✅ Deferido + #${numeroFinalDoCaso}`)
+                    .setDescription(
+                        `**Status do Veredicto:** DEFERIDO (Aceito)\n` +
+                        `**Decisão Administrativa:** A denúncia apresentada foi minuciosamente avaliada pela mesa técnica da Corregedoria. Fatos e evidências dão sustentação ao pedido.\n\n` +
+                        `👤 **Envolvido(s) Citado(s):**\n${citados}\n\n` +
+                        `📝 **Resumo do Caso:**\n*${resumoCaso}*\n\n` +
+                        `⚠️ **Conclusão:** Diante das irregularidades constatadas, informamos que **será aplicada a advertência necessária** e as sanções regimentais cabíveis.`
+                    )
+                    .setColor(0x2ecc71)
+                    .setFooter({ text: `Encerrado por: ${interaction.user.tag}` })
+                    .setTimestamp();
+
+                // Envia para o canal citando-os fora da embed também para garantir a notificação deles
+                await canalResultados.send({ content: `🔔 **Notificação Formal:** Ocorrência contendo citação para: ${citados}`, embeds: [embedResultado] });
+                
+                await interaction.reply({ content: `🔒 Caso registrado como **DEFERIDO** com o protocolo **#${numeroFinalDoCaso}**. Este canal será deletado...` });
+                return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
+            }
+
+            // --- PROCESSANDO MODAL DE INDEFERIMENTO ---
+            if (customId === 'modal_indeferido') {
+                const embedResultado = new EmbedBuilder()
+                    .setTitle(`❌ Indeferido + #${numeroFinalDoCaso}`)
+                    .setDescription(
+                        `**Status do Veredicto:** INDEFERIDO (Recusado)\n` +
+                        `**Decisão Administrativa:** A denúncia apresentada foi devidamente encerrada pela Corregedoria.\n\n` +
+                        `👤 **Envolvido(s) Citado(s):**\n${citados}\n\n` +
+                        `⚠️ **Motivo da Recusa:** Informamos que o processo **não foi aceito por falta de provas concretas** ou porque a análise interna da Corregedoria julgou o caso como improcedente (insuficiência de elementos/quebras regimentais não comprovadas).`
+                    )
+                    .setColor(0xe74c3c)
+                    .setFooter({ text: `Encerrado por: ${interaction.user.tag}` })
+                    .setTimestamp();
+
+                await canalResultados.send({ content: `🔔 **Notificação Formal:** Ocorrência contendo citação para: ${citados}`, embeds: [embedResultado] });
+                
+                await interaction.reply({ content: `🔒 Caso registrado como **INDEFERIDO** com o protocolo **#${numeroFinalDoCaso}**. Este canal será deletado...` });
+                return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
+            }
         }
-
-        // Consome o número do caso de forma incremental salvando no arquivo de texto
-        const numeroFinalDoCaso = obterProximoCaso();
-
-        // --- PROCESSANDO MODAL DE DEFERIMENTO ---
-        if (customId === 'modal_deferido') {
-            const resumoCaso = fields.getTextInputValue('resumo_caso');
-            const embedResultado = new EmbedBuilder()
-                .setTitle(`✅ Deferido + #${numeroFinalDoCaso}`)
-                .setDescription(
-                    `**Status do Veredicto:** DEFERIDO (Aceito)\n` +
-                    `**Decisão Administrativa:** A denúncia apresentada foi minuciosamente avaliada pela mesa técnica da Corregedoria. Fatos e evidências dão sustentação ao pedido.\n\n` +
-                    `📝 **Resumo do Caso:**\n*${resumoCaso}*\n\n` +
-                    `⚠️ **Conclusão:** Diante das irregularidades constatadas, informamos que **será aplicada a advertência necessária** e as sanções regimentais cabíveis ao oficial/membro envolvido.`
-                )
-                .setColor(0x2ecc71)
-                .setFooter({ text: `Encerrado por: ${interaction.user.tag}` })
-                .setTimestamp();
-
-            await canalResultados.send({ embeds: [embedResultado] });
-            await interaction.reply(`🔒 Caso registrado como **DEFERIDO** com o protocolo **#${numeroFinalDoCaso}**. Este canal será deletado...`);
-            return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
-        }
-
-        // --- PROCESSANDO MODAL DE INDEFERIMENTO ---
-        if (customId === 'modal_indeferido') {
-            const embedResultado = new EmbedBuilder()
-                .setTitle(`❌ Indeferido + #${numeroFinalDoCaso}`)
-                .setDescription(
-                    `**Status do Veredicto:** INDEFERIDO (Recusado)\n` +
-                    `**Decisão Administrativa:** A denúncia apresentada foi devidamente encerrada pela Corregedoria.\n\n` +
-                    `⚠️ **Motivo da Recusa:** Informamos que o processo **não foi aceito por falta de provas concretas** ou porque a análise interna da Corregedoria julgou o caso como improcedente (insuficiência de elementos/quebras regimentais não comprovadas).`
-                )
-                .setColor(0xe74c3c)
-                .setFooter({ text: `Encerrado por: ${interaction.user.tag}` })
-                .setTimestamp();
-
-            await canalResultados.send({ embeds: [embedResultado] });
-            await interaction.reply(`🔒 Caso registrado como **INDEFERIDO** com o protocolo **#${numeroFinalDoCaso}**. Este canal será deletado...`);
-            return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
-        }
-    }
 },
 };
