@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const config = require('../config.json');
 
+const memoriaFechamento = new Map();
 // Definição dos canais oficiais enviados por você
 const ID_CANAL_RESULTADOS = "1529134537018441738"; 
 const CAMINHO_CONTADOR = path.join(__dirname, '../contador.txt');
@@ -52,7 +53,7 @@ module.exports = {
         if (interaction.isButton()) {
             const { guild, user, customId } = interaction;
 
-            // Tratamento do fechamento e validação de permissões administrativas
+                        // Tratamento do fechamento e validação de permissões administrativas
             if (customId === 'btn_fechar_ticket') {
                 const temAcesso = interaction.member.roles.cache.has(config.idCargoCorregedor) || 
                                   interaction.member.roles.cache.has(config.idCargoStaff) || 
@@ -62,19 +63,23 @@ module.exports = {
                     return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
                 }
 
-                const embedVeredicto = new EmbedBuilder()
-                    .setTitle("🔒 ENCERRAMENTO DE OCORRÊNCIA")
-                    .setDescription("Por favor, selecione abaixo o veredicto final desta manifestação antes do arquivamento:")
+                const embedFiltro = new EmbedBuilder()
+                    .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
+                    .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
                     .setColor(0x2f3136);
 
-                const rowVeredicto = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('btn_veredicto_deferido').setLabel('✅ Deferido').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('btn_veredicto_indeferido').setLabel('❌ Indeferido').setStyle(ButtonStyle.Danger)
-                );
+                // Menu nativo que abre a lista de membros do seu servidor
+                const menuUsuarios = new UserSelectMenuBuilder()
+                    .setCustomId('selecao_membros_caso')
+                    .setPlaceholder('Clique aqui para selecionar os envolvidos...')
+                    .setMinValues(1)
+                    .setMaxValues(10); // Permite citar até 10 pessoas juntas
 
-                // Altera de interaction.reply para enviar uma mensagem comum na sala, permitindo a abertura do modal em seguida
-                return interaction.reply({ embeds: [embedVeredicto], components: [rowVeredicto] });
+                const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
+
+                return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
             }
+
 
                         // Ação se clicar em Deferido
             if (customId === 'btn_veredicto_deferido') {
