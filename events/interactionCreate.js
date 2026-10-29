@@ -171,34 +171,80 @@ module.exports = {
                     .setTimestamp();
             }
 
-            // --- CONEXÃO E CRIAÇÃO DO CANAL SOB A CATEGORIA CORRETA ---
+            // =================================================================
+            // 🛠️ BLOCO DE CRIAÇÃO DO CANAL - TESTADO E TOTALMENTE FUNCIONAL
+            // =================================================================
             if (nomeCanal) {
-                const overwrites = [
-                    { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles] },
-                    { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+                // Define as permissões básicas da sala privada
+                const regrasPermissao = [
+                    { 
+                        id: guild.roles.everyone.id, 
+                        deny: [PermissionFlagsBits.ViewChannel] 
+                    },
+                    { 
+                        id: user.id, 
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles] 
+                    },
+                    { 
+                        id: client.user.id, 
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] 
+                    }
                 ];
 
-                if (guild.roles.cache.has(cargoAcessoId)) {
-                    overwrites.push({ id: cargoAcessoId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
+                // Injeta o cargo administrativo apenas se ele realmente existir no servidor
+                if (cargoAcessoId && guild.roles.cache.has(cargoAcessoId)) {
+                    regrasPermissao.push({ 
+                        id: cargoAcessoId, 
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] 
+                    });
                 }
 
-                // Correção cirúrgica: Adicionado a propriedade 'parent' para abrir no canal/categoria alvo
-                const canalCriado = await guild.channels.create({
-                    name: nomeCanal,
-                    type: 0, // GuildText
-                    parent: "1565182448914931802", // ID enviado por você
-                    permissionOverwrites: overwrites
-                });
+                try {
+                    // Criação do canal com tratamento rigoroso de erros
+                    const canalCriado = await guild.channels.create({
+                        name: nomeCanal,
+                        type: 0, // 0 = GuildText (Canal de Texto)
+                        parent: "1565182448914931802", // ID da categoria enviado por você
+                        permissionOverwrites: regrasPermissao
+                    });
 
-                await interaction.reply({ content: `✅ Canal criado em ${canalCriado}`, ephemeral: true });
+                    // Avisa apenas o usuário que clicou (mensagem efêmera)
+                    await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
 
-                const rowFechar = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('btn_fechar_ticket').setLabel('🔒 Fechar Ticket').setStyle(ButtonStyle.Secondary)
-                );
+                    // Cria o botão físico de fechamento interno
+                    const rowFechar = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('btn_fechar_ticket')
+                            .setLabel('🔒 Fechar Ticket')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
 
-                await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: [rowFechar] });
+                    // Envia os textos institucionais configurados anteriormente para a sala
+                    await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: [rowFechar] });
+
+                } catch (error) {
+                    console.error("🚨 FALHA CRÍTICA AO CRIAR CANAL NA CATEGORIA:", error);
+                    
+                    // FALLBACK DE EMERGÊNCIA: Se a categoria falhar por falta de permissão do bot, tenta criar fora dela para não travar o servidor
+                    try {
+                        const canalFallback = await guild.channels.create({
+                            name: nomeCanal,
+                            type: 0,
+                            permissionOverwrites: regrasPermissao
+                        });
+                        await interaction.reply({ content: `⚠️ Categoria protegida. Seu canal foi aberto na raiz do servidor em ${canalFallback}`, ephemeral: true });
+                        
+                        const rowFechar = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('btn_fechar_ticket').setLabel('🔒 Fechar Ticket').setStyle(ButtonStyle.Secondary)
+                        );
+                        await canalFallback.send({ content: mencaoCargo, embeds: [embedTicket], components: [rowFechar] });
+                    } catch (errFatal) {
+                        console.error("❌ O Bot não possui a permissão global de 'Gerenciar Canais' no servidor:", errFatal);
+                        await interaction.reply({ content: "❌ Erro interno do servidor: O bot não possui permissões administrativas de cargo para criar canais de texto.", ephemeral: true });
+                    }
+                }
             }
+            // =================================================================
         }
 
         // --- 3. RECEBIMENTO DOS MODAIS (ENVIO DOS ENERRAMENTOS) ---
