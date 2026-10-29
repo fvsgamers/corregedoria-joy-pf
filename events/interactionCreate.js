@@ -72,6 +72,7 @@ module.exports = {
                     new ButtonBuilder().setCustomId('btn_veredicto_indeferido').setLabel('❌ Indeferido').setStyle(ButtonStyle.Danger)
                 );
 
+                // Altera de interaction.reply para enviar uma mensagem comum na sala, permitindo a abertura do modal em seguida
                 return interaction.reply({ embeds: [embedVeredicto], components: [rowVeredicto] });
             }
 
@@ -80,14 +81,12 @@ module.exports = {
                 const proximoNumero = consultarCasoAtual();
                 const modal = new ModalBuilder().setCustomId('modal_deferido').setTitle('Caso Deferido');
                 
-                // Campo bloqueado para edição manual através do setDisabled(true)
                 const numCasoInput = new TextInputBuilder()
                     .setCustomId('num_caso')
-                    .setLabel('Número do Caso (Gerado Automaticamente)')
+                    .setLabel('Número do Caso (Confirme o Protocolo)')
                     .setValue(`#${proximoNumero}`)
                     .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setDisabled(true); 
+                    .setRequired(true); // Removido o setDisabled para o Discord permitir a submissão
 
                 const resumoInput = new TextInputBuilder()
                     .setCustomId('resumo_caso')
@@ -104,14 +103,12 @@ module.exports = {
                 const proximoNumero = consultarCasoAtual();
                 const modal = new ModalBuilder().setCustomId('modal_indeferido').setTitle('Caso Indeferido');
                 
-                // Campo bloqueado para edição manual através do setDisabled(true)
                 const numCasoInput = new TextInputBuilder()
                     .setCustomId('num_caso')
-                    .setLabel('Número do Caso (Gerado Automaticamente)')
+                    .setLabel('Número do Caso (Confirme o Protocolo)')
                     .setValue(`#${proximoNumero}`)
                     .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setDisabled(true);
+                    .setRequired(true);
 
                 modal.addComponents(new ActionRowBuilder().addComponents(numCasoInput));
                 return interaction.showModal(modal);
