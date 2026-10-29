@@ -212,13 +212,25 @@ module.exports = {
                 return interaction.update({ embeds: [embedEscolha], components: [rowEscolhas] });
             }
 
-            // Etapa 2: Processa a seleção múltipla de advertências
+                        // Etapa 2: Processa a seleção múltipla de advertências
             if (customId === 'menu_advertencias_multiplas') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 if (!dadosCaso) return interaction.reply({ content: "❌ Erro nas etapas de fechamento. Reabra o menu.", ephemeral: true });
 
-                const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
-                if (!canalResultados) return interaction.reply({ content: "❌ Canal de logs não localizado.", ephemeral: true });
+                // CORREÇÃO: Tenta pegar do cache, se não achar, busca direto na API do Discord (fetch)
+                let canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
+                if (!canalResultados) {
+                    try {
+                        canalResultados = await guild.channels.fetch(ID_CANAL_RESULTADOS);
+                    } catch (errFetch) {
+                        console.error("🚨 Erro ao buscar canal via API:", errFetch);
+                    }
+                }
+
+                // Se mesmo buscando na API falhar, avisa o administrador
+                if (!canalResultados) {
+                    return interaction.reply({ content: "❌ Erro: O canal de resultados não pôde ser localizado pela API. Verifique se o ID está correto ou se o Bot tem acesso a ele.", ephemeral: true });
+                }
 
                 const numeroFinalDoCaso = obterProximoCaso();
                 
@@ -253,6 +265,7 @@ module.exports = {
                 memoriaFechamento.delete(channelId);
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
             }
+
         }
     },
 };
