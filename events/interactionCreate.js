@@ -212,54 +212,63 @@ module.exports = {
                 return interaction.update({ embeds: [embedEscolha], components: [rowEscolhas] });
             }
 
-                        // Etapa 2: Processa a seleção múltipla de advertências
+                        // Etapa 2: Processa a seleção múltipla de advertências e aplica os cargos no Discord
             if (customId === 'menu_advertencias_multiplas') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 if (!dadosCaso) return interaction.reply({ content: "❌ Erro nas etapas de fechamento. Reabra o menu.", ephemeral: true });
 
-                // 🌟 REDUNDÂNCIA ABSOLUTA DE BUSCA DE CANAL
                 let canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
-                
                 if (!canalResultados) {
-                    try {
-                        canalResultados = await guild.channels.fetch(ID_CANAL_RESULTADOS);
-                    } catch (errFetch) {
-                        // Se falhar por ID, tenta buscar pelo nome do canal (Fallback definitivo)
-                        console.log("Buscando canal de resultados por nome na lista de canais...");
+                    try { canalResultados = await guild.channels.fetch(ID_CANAL_RESULTADOS); } catch (e) {
                         canalResultados = guild.channels.cache.find(c => c.name === "resultados-corregedoria" || c.name === "logs-resultados");
                     }
                 }
 
-                // Se mesmo com todas as tentativas falhar, o bot avisa o erro real de permissão
                 if (!canalResultados) {
-                    return interaction.reply({ 
-                        content: `❌ Erro de Acesso: O ID \`${ID_CANAL_RESULTADOS}\` está inacessível.\n` +
-                                 `👉 **Como resolver:** Vá nas configurações desse canal no Discord, clique em Permissões, adicione o Bot e ative **Ver Canal**, **Enviar Mensagens** e **Inserir Links**.`, 
-                        ephemeral: true 
-                    });
+                    return interaction.reply({ content: "❌ Erro: O canal de resultados não pôde ser localizado.", ephemeral: true });
                 }
 
                 const numeroFinalDoCaso = obterProximoCaso();
-                
+                const ID_CARGO_GERAL_ADV = "1394767740627062874";
+
+                // Dicionário com os nomes das advertências e seus prazos regimentais
                 const dicionarioAdvs = {
-                    "1511367174307188866": "Advertência Verbal (Avisado)",
-                    "1394767944176631969": "Advertência Escrita Nível 1",
-                    "1394767901218836521": "Advertência Geral Nível 2",
-                    "1394767862174060705": "Suspensão de Atividades Administrativas"
+                    "1511367174307188866": "Advertência Verbal - (Poderá ser desligado ou analisado como irá proceder)",
+                    "1394767944176631969": "Advertência Escrita Nível 1 - (Vigência: 15 dias)",
+                    "1394767901218836521": "Advertência Geral Nível 2 - (Vigência: 10 dias)",
+                    "1394767862174060705": "Suspensão de Atividades Administrativas - (Vigência: 7 dias)"
                 };
 
                 const textoAdvsMarcadas = values.map(id => `• ${dicionarioAdvs[id] || id}`).join('\n');
 
-                // Emite logs separados para cada infrator citado
+                // Executa as punições e cargos individualmente para cada envolvido
                 for (const idMembro of dadosCaso.envolvidos) {
+                    try {
+                        // Busca o membro dentro do servidor para poder manipular seus cargos
+                        const membroAlvo = await guild.members.fetch(idMembro);
+                        
+                        if (membroAlvo) {
+                            // 1. Aplica o cargo geral obrigatório de advertência enviado por você
+                            await membroAlvo.roles.add(ID_CARGO_GERAL_ADV).catch(() => console.log(`Não foi possível adicionar o cargo geral ao ID: ${idMembro}`));
+
+                            // 2. Passa um pente fino nas advertências selecionadas e aplica os cargos respectivos
+                            for (const idCargoPunicao of values) {
+                                await membroAlvo.roles.add(idCargoPunicao).catch(() => console.log(`Não foi possível adicionar o cargo específico ${idCargoPunicao} ao ID: ${idMembro}`));
+                            }
+                        }
+                    } catch (errMembro) {
+                        console.error(`Erro ao aplicar cargos no Discord para o ID ${idMembro}:`, errMembro);
+                    }
+
+                    // Gera a Embed oficial individual formatada com as novas regras de prazos
                     const embedIndividual = new EmbedBuilder()
                         .setTitle(`✅ Deferido + #${numeroFinalDoCaso}`)
                         .setDescription(
                             `**Status do Veredicto:** DEFERIDO (Aceito)\n` +
                             `**Decisão Administrativa:** Processo julgado procedente pela Corregedoria Geral.\n\n` +
                             `👤 **Infrator Penalizado:** <@${idMembro}>\n\n` +
-                            `⚠️ **Punição(ões) Aplicada(s):**\n${textoAdvsMarcadas}\n\n` +
-                            `*As punições foram computadas individualmente no histórico de fichas da corporação.*`
+                            `⚠️ **Punição(ões) Aplicada(s) e Prazos:**\n${textoAdvsMarcadas}\n\n` +
+                            `*Os cargos de punição correspondentes e o registro geral de advertência foram aplicados automaticamente no perfil do(s) envolvido(s).*`
                         )
                         .setColor(0x2ecc71)
                         .setFooter({ text: `Julgado por: ${interaction.user.tag}` })
@@ -268,10 +277,11 @@ module.exports = {
                     await canalResultados.send({ content: `🔔 **Notificação de Punição:** <@${idMembro}>`, embeds: [embedIndividual] });
                 }
 
-                await interaction.update({ content: `🔒 **Sucesso!** Protocolo **#${numeroFinalDoCaso}** arquivado. Canal sendo deletado...`, embeds: [], components: [] });
+                await interaction.update({ content: `🔒 **Sucesso!** Protocolo **#${numeroFinalDoCaso}** arquivado, cargos setados e canal deletado.`, embeds: [], components: [] });
                 memoriaFechamento.delete(channelId);
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
             }
+
         }
     },
 };
