@@ -93,33 +93,58 @@ module.exports = {
                 return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
             }
 
-            // BOTÃO: Veredicto Indeferido (Fecha e envia log padrão)
+                        // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
             if (customId === 'btn_final_indeferido') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
                 const numeroFinalDoCaso = obterProximoCaso();
+                const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
 
                 if (dadosCaso && canalResultados) {
                     const listaMencionados = dadosCaso.envolvidos.map(id => `<@${id}>`).join(', ');
 
+                    // TEXTO ELABORADO DE INDEFERIMENTO
                     const embedResultado = new EmbedBuilder()
-                        .setTitle(`❌ Indeferido + #${numeroFinalDoCaso}`)
+                        .setTitle(`🏛️ INDEFERIDO + #${numeroFinalDoCaso}`)
                         .setDescription(
-                            `**Status do Veredicto:** INDEFERIDO (Recusado)\n` +
-                            `**Decisão Administrativa:** Processo arquivado.\n\n` +
+                            `**STATUS JURÍDICO:** SENTENÇA INDEFERIDA (IMPROCEDENTE)\n\n` +
+                            `A Corregedoria Geral da Cidade, após análise detida dos fatos narrados e verificação da idoneidade material trazida aos autos do chamado, declara o processo **ARQUIVADO**.\n\n` +
                             `👤 **Membros Citados:** ${listaMencionados}\n\n` +
-                            `⚠️ **Motivo da Recusa:** Informamos que o processo **não foi aceito por falta de provas concretas** ou porque a análise interna da Corregedoria julgou o caso como improcedente.`
+                            `⚠️ **Fundamentação da Recusa:** A postulação não reuniu condições mínimas de admissibilidade, sendo rejeitada por **total ausência de elementos probatórios concretos** (falta de filmagens claras ou evidências inequívocas) ou por incompatibilidade técnica com o regimento disciplinar de condutas vigentes na cidade.`
                         )
                         .setColor(0xe74c3c)
-                        .setFooter({ text: `Encerrado por: ${interaction.user.tag}` })
+                        .setFooter({ text: `Relator Responsável: ${interaction.user.tag}` })
                         .setTimestamp();
 
-                    await canalResultados.send({ content: `🔔 **Notificação Formal:** ${listaMencionados}`, embeds: [embedResultado] });
+                    await canalResultados.send({ content: `🔔 **Notificação de Arquivamento:** ${listaMencionados}`, embeds: [embedResultado] });
                 }
 
-                await interaction.update({ content: `🔒 Caso registrado como **INDEFERIDO** (#${numeroFinalDoCaso}). Limpando sala...`, embeds: [], components: [] });
+                // GERADOR DE TRANSCRIPT PARA CASO INDEFERIDO
+                try {
+                    const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
+                    let conteudoTexto = `=== TRANSCRIPT OFICIAL DE ATENDIMENTO - CASO INDEFERIDO #${numeroFinalDoCaso} ===\n`;
+                    conteudoTexto += `Canal: ${interaction.channel.name} | Exportado em: ${new Date().toLocaleString('pt-BR')}\n\n`;
+
+                    const msgOrdenadas = mensagens.reverse();
+                    msgOrdenadas.forEach(m => {
+                        conteudoTexto += `[${m.createdAt.toLocaleTimeString('pt-BR')}] ${m.author.tag}: ${m.content}\n`;
+                    });
+
+                    const nomeArquivo = `transcript-indeferido-${numeroFinalDoCaso}.txt`;
+                    const bufferTexto = Buffer.from(conteudoTexto, 'utf-8');
+
+                    const canalAuditoria = guild.channels.cache.get(ID_CANAL_TRANSCRIPTS) || await guild.channels.fetch(ID_CANAL_TRANSCRIPTS).catch(() => null);
+                    if (canalAuditoria) {
+                        await canalAuditoria.send({ 
+                            content: `📁 **Histórico de Arquivamento:** Caso \`#${numeroFinalDoCaso}\` arquivado/indeferido por ${interaction.user}.`,
+                            files: [{ attachment: bufferTexto, name: nomeArquivo }]
+                        });
+                    }
+                } catch (e) { console.error(e); }
+
+                await interaction.update({ content: `🔒 **Caso Indeferido com Sucesso!** Relatório gerado e enviado para a auditoria.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, embeds: [], components: [] });
                 memoriaFechamento.delete(channelId);
-                return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
+                return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
             }
 
             // --- LÓGICA DE CRIAÇÃO DE NOVOS TICKETS PRIVADOS ---
@@ -212,7 +237,7 @@ module.exports = {
                 return interaction.update({ embeds: [embedEscolha], components: [rowEscolhas] });
             }
 
-                        // Etapa 2: Processa a seleção múltipla de advertências e aplica os cargos no Discord
+                        // Etapa 2: Processa a seleção múltipla de advertências, gera Transcript e deleta em 10s
             if (customId === 'menu_advertencias_multiplas') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 if (!dadosCaso) return interaction.reply({ content: "❌ Erro nas etapas de fechamento. Reabra o menu.", ephemeral: true });
@@ -224,62 +249,85 @@ module.exports = {
                     }
                 }
 
-                if (!canalResultados) {
-                    return interaction.reply({ content: "❌ Erro: O canal de resultados não pôde ser localizado.", ephemeral: true });
-                }
+                if (!canalResultados) return interaction.reply({ content: "❌ Erro: O canal de resultados não pôde ser localizado.", ephemeral: true });
 
                 const numeroFinalDoCaso = obterProximoCaso();
-                const ID_CARGO_GERAL_ADV = "1394767740627062874";
+                const ID_CARGO_GERAL_ADV = "13947740627062874"; 
+                const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
 
-                // Dicionário com os nomes das advertências e seus prazos regimentais
                 const dicionarioAdvs = {
-                    "1511367174307188866": "Advertência Verbal - (Poderá ser desligado ou analisado como irá proceder)",
-                    "1394767944176631969": "Advertência Escrita Nível 1 - (Vigência: 15 dias)",
-                    "1394767901218836521": "Advertência Geral Nível 2 - (Vigência: 10 dias)",
-                    "1394767862174060705": "Suspensão de Atividades Administrativas - (Vigência: 7 dias)"
+                    "1511367174307188866": "Advertência Verbal (Ficha sob análise técnica, sujeito a desligamento imediato)",
+                    "1394767944176631969": "Advertência Escrita Nível 1 (Vigência obrigatória: 15 dias corridos)",
+                    "1394767901218836521": "Advertência Geral Nível 2 (Vigência obrigatória: 10 dias corridos)",
+                    "1394767862174060705": "Suspensão de Atividades Administrativas (Afastamento compulsório: 7 dias)"
                 };
 
                 const textoAdvsMarcadas = values.map(id => `• ${dicionarioAdvs[id] || id}`).join('\n');
 
-                // Executa as punições e cargos individualmente para cada envolvido
+                // 1. APLICAÇÃO DOS CARGOS INDIVIDUAIS NO DISCORD
                 for (const idMembro of dadosCaso.envolvidos) {
                     try {
-                        // Busca o membro dentro do servidor para poder manipular seus cargos
-                        const membroAlvo = await guild.members.fetch(idMembro);
-                        
+                        const membroAlvo = await guild.members.fetch(idMembro).catch(() => null);
                         if (membroAlvo) {
-                            // 1. Aplica o cargo geral obrigatório de advertência enviado por você
-                            await membroAlvo.roles.add(ID_CARGO_GERAL_ADV).catch(() => console.log(`Não foi possível adicionar o cargo geral ao ID: ${idMembro}`));
-
-                            // 2. Passa um pente fino nas advertências selecionadas e aplica os cargos respectivos
+                            // Seta o cargo de advertência geral
+                            await membroAlvo.roles.add(ID_CARGO_GERAL_ADV).catch(() => {});
+                            
+                            // Seta todos os cargos específicos selecionados no menu
                             for (const idCargoPunicao of values) {
-                                await membroAlvo.roles.add(idCargoPunicao).catch(() => console.log(`Não foi possível adicionar o cargo específico ${idCargoPunicao} ao ID: ${idMembro}`));
+                                await membroAlvo.roles.add(idCargoPunicao).catch(() => {});
                             }
                         }
-                    } catch (errMembro) {
-                        console.error(`Erro ao aplicar cargos no Discord para o ID ${idMembro}:`, errMembro);
+                    } catch (err) {
+                        console.error(`Falha ao setar cargos no membro ${idMembro}:`, err);
                     }
 
-                    // Gera a Embed oficial individual formatada com as novas regras de prazos
+                    // 2. TEXTO ELABORADO DE DEFERIMENTO
                     const embedIndividual = new EmbedBuilder()
-                        .setTitle(`✅ Deferido + #${numeroFinalDoCaso}`)
+                        .setTitle(`⚖️ DEFERIDO + #${numeroFinalDoCaso}`)
                         .setDescription(
-                            `**Status do Veredicto:** DEFERIDO (Aceito)\n` +
-                            `**Decisão Administrativa:** Processo julgado procedente pela Corregedoria Geral.\n\n` +
+                            `**STATUS JURÍDICO:** SENTENÇA DEFERIDA (PROCEDENTE)\n\n` +
+                            `O Departamento de Controle Interno e Corregedoria Geral concluiu a avaliação regulamentar do presente protocolo de ocorrência. Com base no acervo probatório submetido, foi constatado desvio formal de conduta administrativa.\n\n` +
                             `👤 **Infrator Penalizado:** <@${idMembro}>\n\n` +
-                            `⚠️ **Punição(ões) Aplicada(s) e Prazos:**\n${textoAdvsMarcadas}\n\n` +
-                            `*Os cargos de punição correspondentes e o registro geral de advertência foram aplicados automaticamente no perfil do(s) envolvido(s).*`
+                            `⚠️ **Sanções Regimentais Aplicadas:**\n${textoAdvsMarcadas}\n\n` +
+                            `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*`
                         )
                         .setColor(0x2ecc71)
-                        .setFooter({ text: `Julgado por: ${interaction.user.tag}` })
+                        .setFooter({ text: `Relator Responsável: ${interaction.user.tag}` })
                         .setTimestamp();
 
-                    await canalResultados.send({ content: `🔔 **Notificação de Punição:** <@${idMembro}>`, embeds: [embedIndividual] });
+                    await canalResultados.send({ content: `🔔 **Citação Processual:** <@${idMembro}>`, embeds: [embedIndividual] });
                 }
 
-                await interaction.update({ content: `🔒 **Sucesso!** Protocolo **#${numeroFinalDoCaso}** arquivado, cargos setados e canal deletado.`, embeds: [], components: [] });
+                // 3. GERADOR NATIVO DE TRANSCRIPT (EXPORTAÇÃO DE CONVERSA)
+                try {
+                    const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
+                    let conteudoTexto = `=== TRANSCRIPT OFICIAL DE ATENDIMENTO - CASO #${numeroFinalDoCaso} ===\n`;
+                    conteudoTexto += `Canal: ${interaction.channel.name} | Exportado em: ${new Date().toLocaleString('pt-BR')}\n\n`;
+
+                    const msgOrdenadas = mensagens.reverse();
+                    msgOrdenadas.forEach(m => {
+                        conteudoTexto += `[${m.createdAt.toLocaleTimeString('pt-BR')}] ${m.author.tag}: ${m.content}\n`;
+                        if (m.embeds.length > 0) conteudoTexto += `↳ [Contém Embed de Sistema]\n`;
+                    });
+
+                    const nomeArquivo = `transcript-caso-${numeroFinalDoCaso}.txt`;
+                    const bufferTexto = Buffer.from(conteudoTexto, 'utf-8');
+
+                    const canalAuditoria = guild.channels.cache.get(ID_CANAL_TRANSCRIPTS) || await guild.channels.fetch(ID_CANAL_TRANSCRIPTS).catch(() => null);
+                    if (canalAuditoria) {
+                        await canalAuditoria.send({ 
+                            content: `📁 **Histórico de Arquivamento:** Caso \`#${numeroFinalDoCaso}\` finalizado por ${interaction.user}. Segue anexo o log completo das conversas.`,
+                            files: [{ attachment: bufferTexto, name: nomeArquivo }]
+                        });
+                    }
+                } catch (errTranscript) {
+                    console.error("Erro ao gerar ou enviar o transcript:", errTranscript);
+                }
+
+                // 4. DELETAR EM 10 SEGUNDOS CRONOMETRADOS
+                await interaction.update({ content: `🔒 **Caso Deferido com Sucesso!** Veredicto publicado, cargos aplicados e histórico salvo.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, embeds: [], components: [] });
                 memoriaFechamento.delete(channelId);
-                return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
+                return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
             }
 
         }
