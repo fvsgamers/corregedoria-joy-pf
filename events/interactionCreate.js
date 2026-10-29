@@ -170,6 +170,7 @@ module.exports = {
                     .setTimestamp();
             }
 
+            // --- CONEXÃO E CRIAÇÃO DO CANAL SOB A CATEGORIA CORRETA ---
             if (nomeCanal) {
                 const overwrites = [
                     { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -181,9 +182,11 @@ module.exports = {
                     overwrites.push({ id: cargoAcessoId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
                 }
 
+                // Correção cirúrgica: Adicionado a propriedade 'parent' para abrir no canal/categoria alvo
                 const canalCriado = await guild.channels.create({
                     name: nomeCanal,
-                    type: 0,
+                    type: 0, // GuildText
+                    parent: "1565182448914931802", // ID enviado por você
                     permissionOverwrites: overwrites
                 });
 
