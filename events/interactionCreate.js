@@ -217,19 +217,26 @@ module.exports = {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 if (!dadosCaso) return interaction.reply({ content: "❌ Erro nas etapas de fechamento. Reabra o menu.", ephemeral: true });
 
-                // CORREÇÃO: Tenta pegar do cache, se não achar, busca direto na API do Discord (fetch)
+                // 🌟 REDUNDÂNCIA ABSOLUTA DE BUSCA DE CANAL
                 let canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
+                
                 if (!canalResultados) {
                     try {
                         canalResultados = await guild.channels.fetch(ID_CANAL_RESULTADOS);
                     } catch (errFetch) {
-                        console.error("🚨 Erro ao buscar canal via API:", errFetch);
+                        // Se falhar por ID, tenta buscar pelo nome do canal (Fallback definitivo)
+                        console.log("Buscando canal de resultados por nome na lista de canais...");
+                        canalResultados = guild.channels.cache.find(c => c.name === "resultados-corregedoria" || c.name === "logs-resultados");
                     }
                 }
 
-                // Se mesmo buscando na API falhar, avisa o administrador
+                // Se mesmo com todas as tentativas falhar, o bot avisa o erro real de permissão
                 if (!canalResultados) {
-                    return interaction.reply({ content: "❌ Erro: O canal de resultados não pôde ser localizado pela API. Verifique se o ID está correto ou se o Bot tem acesso a ele.", ephemeral: true });
+                    return interaction.reply({ 
+                        content: `❌ Erro de Acesso: O ID \`${ID_CANAL_RESULTADOS}\` está inacessível.\n` +
+                                 `👉 **Como resolver:** Vá nas configurações desse canal no Discord, clique em Permissões, adicione o Bot e ative **Ver Canal**, **Enviar Mensagens** e **Inserir Links**.`, 
+                        ephemeral: true 
+                    });
                 }
 
                 const numeroFinalDoCaso = obterProximoCaso();
@@ -265,7 +272,6 @@ module.exports = {
                 memoriaFechamento.delete(channelId);
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
             }
-
         }
     },
 };
