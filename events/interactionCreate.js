@@ -30,6 +30,7 @@ module.exports = {
             let embedTicket = new EmbedBuilder();
             let mencaoCargo = "";
 
+            // --- TEXTO DE APRESENTAÇÃO: CORREGEDORIA ---
             if (customId === 'btn_corregedoria') {
                 nomeCanal = `⚖️-corregedoria-${user.username}`;
                 cargoAcessoId = config.idCargoCorregedor;
@@ -37,19 +38,52 @@ module.exports = {
 
                 embedTicket
                     .setTitle("⚖️ CORREGEDORIA GERAL DA CIDADE")
-                    .setDescription(`Olá ${user}, preencha o formulário:\n\n• Seu Passaporte (ID):\n• Nome/ID do Policial Envolvido:\n• Relato do ocorrido:\n• Link de Provas (Vídeo):`)
-                    .setColor(0xff0000);
+                    .setDescription(
+                        `Prezado(a) cidadão(ã) ${user},\n\n` +
+                        `Você está no canal oficial de atendimento da **Corregedoria Geral**. Este espaço é destinado exclusivamente para a apuração de desvios de conduta, abusos de autoridade ou descumprimento de procedimentos institucionais por parte de funcionários públicos e forças policiais.\n\n` +
+                        `⚠️ **Garantia de Sigilo:** Nos termos do regimento da cidade, todas as informações aqui registradas são estritamente confidenciais e acessíveis apenas pela mesa de oficiais corregedores.\n\n` +
+                        `Para que possamos iniciar os procedimentos de investigação, **envie abaixo as seguintes informações**:`
+                    )
+                    .addFields(
+                        { name: '📋 Formulário de Abertura', value: 
+                            `• **Seu Passaporte (ID):**\n` +
+                            `• **Nome ou ID do Oficial Envolvido:**\n` +
+                            `• **Corporação/Organização:** (Ex: PM, PC, Guardas)\n` +
+                            `• **Data, Horário e Local do Fato:**\n` +
+                            `• **Relato Detalhado:** (Descreva o que aconteceu)\n` +
+                            `• **Link de Provas:** (Vídeo anexado no YouTube, Medal, Streamable, etc.)`
+                        },
+                        { name: '📢 Orientações', value: `Falsas denúncias, desacato técnico ou ocultação de fatos dentro deste canal resultarão em punições severas na cidade por quebra de regras.` }
+                    )
+                    .setColor(0xff0000)
+                    .setTimestamp();
             }
 
+            // --- TEXTO DE APRESENTAÇÃO: REVOGAÇÃO ---
             if (customId === 'btn_revogacao') {
                 nomeCanal = `📝-revogacao-${user.username}`;
                 cargoAcessoId = config.idCargoStaff;
                 mencaoCargo = `<@&${config.idCargoStaff}>`;
 
                 embedTicket
-                    .setTitle("📝 PEDIDO DE REVOGAÇÃO DE PUNIÇÃO")
-                    .setDescription(`Olá ${user}, conteste sua punição aqui:\n\n• Seu Passaporte (ID):\n• Qual punição quer retirar?:\n• Motivo/Justificativa comercial:`)
-                    .setColor(0x0000ff);
+                    .setTitle("📝 DEPARTAMENTO DE REVISÃO E REVOGAÇÃO")
+                    .setDescription(
+                        `Olá ${user},\n\n` +
+                        `Este canal foi aberto para que você possa apresentar sua contestação formal em relação a punições, advertências administrativas (*warns*) ou banimentos aplicados dentro do servidor.\n\n` +
+                        `A mesa administrativa analisará o seu caso com base nas regras gerais da cidade e nas provas apresentadas por ambas as partes. Por favor, **preencha a sua ficha de defesa abaixo**: Bureaucracy`
+                    )
+                    .addFields(
+                        { name: '📋 Ficha de Contestação', value: 
+                            `• **Seu Passaporte (ID):**\n` +
+                            `• **Qual punição deseja revogar?:** (Ex: Advertência na PM, Ban da Cidade, Warn de Facção)\n` +
+                            `• **Quem aplicou a punição?:** (ID ou nome do Staff/Oficial)\n` +
+                            `• **Sua Justificativa/Defesa:** (Explique por que a punição deve ser anulada ou revista)\n` +
+                            `• **Provas de Inocência (Se houver):** (Links de contra-provas em vídeo)`
+                        },
+                        { name: '⏳ Próximos Passos', value: `Aguarde pacientemente. A Staff irá analisar os logs da sua ação. Não marque os administradores no chat.` }
+                    )
+                    .setColor(0x0000ff)
+                    .setTimestamp();
             }
 
             if (nomeCanal) {
